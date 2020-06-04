@@ -9,12 +9,12 @@ import useSWR from 'swr'
 import NumberInput from 'react-number-format'
 import { useLocalStorage } from 'react-use'
 import PercentInput from '../components/PercentInput'
-// import useLocalStorage from 'react-use-localstorage'
 import NavBar from '../components/NavBar'
 import Draggable from '../components/Draggable'
 import update from 'immutability-helper'
 import { getClosestNumber, twoDecimalsWithCommas } from '../libs'
 
+const toNumber = x => parseFloat(String(x).replace(/\,|\$/gi, ''))
 
 export default function Calls(props) {
   const [symbols, setSymbols] = useLocalStorage('call-symbols', ['TSLA', 'AAPL', 'GE', 'MSFT'])
@@ -22,14 +22,14 @@ export default function Calls(props) {
   const move = useCallback(
     (dragIndex, hoverIndex) => {
       const dragCard = symbols[dragIndex]
-      setSymbols(
-        update([...symbols], {
+      const updated = update([...symbols], {
           $splice: [
             [dragIndex, 1],
             [hoverIndex, 0, dragCard],
           ],
-        }),
-      )
+        })
+        // console.log('updated', updated)
+      setSymbols(updated)
     },
     [symbols],
   )
@@ -39,7 +39,7 @@ export default function Calls(props) {
       <NavBar />
       <Container>
         {symbols.map((symbol, i) => (
-          <Draggable key={i} moveCard={move} index={i} id={symbol+i}>
+          <Draggable key={i} moveCard={move} index={i} id={symbol}>
             <OptionsChainingTable
               symbol={symbol}
               removeSymbol={() => setSymbols(s => s.filter(sym => sym !== symbol))}
@@ -71,41 +71,41 @@ const Container = styled.div`
 `
 
 function OptionsChainingTable({ symbol, removeSymbol, editSymbol }) {
-  const [discounts, setDiscounts] = useLocalStorage(`call-discounts-${symbol}`, [.10, .15, .20])
-  const [tradeAmt, setTradeAmount] = useLocalStorage(`call-trade-amount-${symbol}`, '$1,000,000')
-  const tradeAmount = parseFloat(String(tradeAmt).replace(/\,|\$/gi, ''))
+  const [premiums, setPremiums] = useLocalStorage(`call-premiums-${symbol}`, [.10, .15, .20])
+  // console.log(`(${symbol}) premiums`, premiums)
+  const [purchasePrice, setPurchasePrice] = useLocalStorage(`call-purchase-price${symbol}`, 10)
+  const [withPurchasePrice, setWithPurchasePrice] = useLocalStorage(`call-with-purchase-price${symbol}`, false)
+  const [numberOfContracts, setNumberOfContracts] = useLocalStorage(`call-#-of-contracts-${symbol}`, 10)
+  const contractsCount = toNumber(numberOfContracts)
   const { data = {} } = useSWR(`/api/ameritrade/calls?symbol=${symbol.toUpperCase()}`, k => fetch(k).then(r => r.json()))
   
   const { currentMarketValue = 0, error, callExpDateMap = {} } = data
-  const staticContractsCount = tradeAmount / (currentMarketValue * 100)
-  const [isStatic, setIsStatic] = useLocalStorage(`call-${symbol}-is-static-#-of-contracts`, true)
-  const rows = useMemo(() => discounts.map((decimalPercent, i) => {
-    const percent = Math.round(decimalPercent * 100)
-    const discountedStrikePrice = (1 - decimalPercent) * currentMarketValue
-    const contractsCount = isStatic ? staticContractsCount : (tradeAmount / (discountedStrikePrice * 100)) // here for when we do dynamic
+  const price = withPurchasePrice ? toNumber(purchasePrice) : currentMarketValue
+  const tradeAmount = contractsCount * price * 100
+  const rows = useMemo(() => premiums.map((decimalPercent, i) => {
+    const premiumStrikePrice = (1 + decimalPercent) * price
     const callOptionChains = Object.values(callExpDateMap).map(callsByStrikePrice => {
-      const closestStrikePrice = getClosestNumber(discountedStrikePrice, callsByStrikePrice)
+      const closestStrikePrice = getClosestNumber(premiumStrikePrice, callsByStrikePrice)
       // TODO: what if we have multiple calls
-      const closestCall = callsByStrikePrice[closestStrikePrice]
-      let closestBid = (closestCall.bid * 100 * contractsCount).toFixed(2).toLocaleString()
-      if (closestBid === '0.00') closestBid = 0
-      let { daysToExpiration } = closestCall || {}
-      let closestBidPerDay = (closestBid / (daysToExpiration || 1)).toFixed(2).toLocaleString()
-      if (closestBidPerDay === '0.00') closestBidPerDay = 0
+      const closestCall = callsByStrikePrice[closestStrikePrice] || {}
+      let totalIncome = (closestCall.bid * 100 * contractsCount)
+      let incomePerDay = (totalIncome / (closestCall.daysToExpiration || 1))
+      const annualROI = incomePerDay * 365 / tradeAmount * 100
       return {
-        closestBid,
-        closestBidPerDay,
-        contractsCount
+        totalIncome: twoDecimalsWithCommas(totalIncome),
+        incomePerDay: twoDecimalsWithCommas(incomePerDay),
+        annualROI: annualROI.toFixed()
       }
     })
     return {
       id: '_' + Math.random().toString(36).substr(2, 9),
-      discount: percent,
+      premiumPercent: Math.round(decimalPercent * 100),
       contractsCount,
-      discountedStrikePrice,
+      premiumStrikePrice,
       callOptionChains
     }
-  }), [discounts, callExpDateMap, isStatic, tradeAmount])
+  }), [premiums, callExpDateMap, numberOfContracts, tradeAmount])
+  // console.log('rerendered', symbol, rows.length)
 
   const expirations = Object.entries(callExpDateMap).map(
     ([expDate, callsByStrikePrice]) => ({
@@ -129,72 +129,83 @@ function OptionsChainingTable({ symbol, removeSymbol, editSymbol }) {
           
         </Col>
         <NumberInput
-          prefix='$'
-          label='Trade Amount'
+          label='# of Contracts'
           customInput={TextField}
-          placeholder='Add Trade Amount'
-          value={tradeAmt}
-          onChange={e => setTradeAmount(e.target.value)}
+          placeholder='add # of contracts'
+          value={numberOfContracts}
+          onChange={e => setNumberOfContracts(e.target.value)}
+          thousandSeparator={true}
+        />
+        <NumberInput
+          prefix='$'
+          label={(
+            <>
+              <span style={{ marginRight: 12 }}>Purchase Price</span>
+              {!!expirations.length && (
+                <PurchasePriceToggle
+                  control={<Switch size='small' color='primary' checked={withPurchasePrice} onChange={() => setWithPurchasePrice(!withPurchasePrice)} />}
+                  label={withPurchasePrice ? 'On' : 'Off'}
+                />
+              )}
+            </>
+          )}
+          customInput={TextField}
+          placeholder='add purchase price'
+          value={purchasePrice}
+          onChange={e => setPurchasePrice(e.target.value)}
           thousandSeparator={true}
         />
         <Close style={{ marginLeft: 'auto', cursor: 'pointer' }} onClick={removeSymbol} />
       </Row>
-      {!expirations.length ? <LoadingTable rows={discounts} /> : (
-<OptionsTable size="small" aria-label="purchases">
-        <TBody>
-          <TR>
-            <SmallCell />
-            <TableCell />
-            <TableCell />
-            <TableCell># Of Contracts</TableCell>
-            {expirations.map(exp => (
-              <TableHead
-                component='th'
-                colSpan='3'
-                scope='colgroup'
-                style={{ display: 'table-cell' }}
-                className='MuiTableCell-sizeSmall' 
-                key={exp.days}
-              >
-                {moment(exp.date, 'YYYY-MM-DD').format('LL')} - {exp.days} DTE (days to expiry)
-              </TableHead>
-            ))}
-          </TR>
-          <TR>
-            <SmallCell />
-            <TableCell>Discount %</TableCell>
-            <TableCell>Discount $</TableCell>
-            <TableCell>
-              <NumberOfContractsToggle
-                control={<Switch size='small' color='primary' checked={isStatic} onChange={() => setIsStatic(!isStatic)} />}
-                label={isStatic ? 'Static' : 'Dynamic'}
+      {!expirations.length ? <LoadingTable rows={premiums} /> : (
+        <OptionsTable size="small" aria-label="purchases">
+          <TBody>
+            <TR>
+              <SmallCell />
+              <TableCell />
+              <TableCell />
+              {expirations.map(exp => (
+                <TableHead
+                  component='th'
+                  colSpan='3'
+                  scope='colgroup'
+                  style={{ display: 'table-cell' }}
+                  className='MuiTableCell-sizeSmall' 
+                  key={exp.days}
+                >
+                  {moment(exp.date, 'YYYY-MM-DD').format('LL')} - {exp.days} DTE (days to expiry)
+                </TableHead>
+              ))}
+            </TR>
+            <TR>
+              <SmallCell />
+              <TableCell>Premium %</TableCell>
+              <TableCell>Premium $</TableCell>
+              {expirations.map(exp => (
+                <Fragment key={exp.days}>
+                  <TableHead style={{ display: 'table-cell' }} className='MuiTableCell-sizeSmall' component='th' scope='col'>Total Income</TableHead>
+                  <TableHead style={{ display: 'table-cell' }} className='MuiTableCell-sizeSmall' component='th' scope='col'>Income/Day</TableHead>
+                  <TableHead style={{ display: 'table-cell' }} className='MuiTableCell-sizeSmall' component='th' scope='col'>Annual ROI %</TableHead>
+                </Fragment>
+              ))}
+            </TR>
+            {rows.map((row, i) => (
+              <PremiumRow
+                key={i}
+                {...row}
+                tradeAmount={tradeAmount}
+                remove={() => setPremiums(premiums.filter((d, j) => j !== i))}
+                edit={e => {
+                  const copy = [...premiums]
+                  copy[i] = Number(parseFloat(e.target.value / 100).toFixed(2))
+                  setPremiums(copy)
+                }}
               />
-            </TableCell>
-            {expirations.map(exp => (
-              <Fragment key={exp.days}>
-                <TableHead style={{ display: 'table-cell' }} className='MuiTableCell-sizeSmall' component='th' scope='col'>Total Income</TableHead>
-                <TableHead style={{ display: 'table-cell' }} className='MuiTableCell-sizeSmall' component='th' scope='col'>Income/Day</TableHead>
-                <TableHead style={{ display: 'table-cell' }} className='MuiTableCell-sizeSmall' component='th' scope='col'>Annual ROI %</TableHead>
-              </Fragment>
             ))}
-          </TR>
-          {rows.map((row, i) => (
-            <DiscountRow
-              key={i}
-              {...row}
-              tradeAmount={tradeAmount}
-              remove={() => setDiscounts(discounts.filter((d, j) => j !== i))}
-              edit={e => {
-                const copy = [...discounts]
-                copy[i] = Number(parseFloat(e.target.value / 100).toFixed(2))
-                setDiscounts(copy)
-              }}
-            />
-          ))}
-        </TBody>
-      </OptionsTable>
+          </TBody>
+        </OptionsTable>
       )}
-      <AddCircleOutline style={{ cursor: 'pointer', margin: '8px 100% 0 0' }} onClick={() => setDiscounts([...discounts, 0.1])} />
+      <AddCircleOutline style={{ cursor: 'pointer', margin: '8px 100% 0 0' }} onClick={() => setPremiums([...premiums, 0.1])} />
     </OptionChainTableContainer>
   )
 }
@@ -208,18 +219,24 @@ const SmallCell = styled(TableCell)`
   padding: 0 !important;
   width: 32px !important;
 `
-const NumberOfContractsToggle = styled(FormControlLabel)`
+const PurchasePriceToggle = styled(FormControlLabel)`
   .MuiFormControlLabel-label {
     font-size: 12px !important;
+    margin-left: 10px !important;
   }
 `
+const Center = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+`
 
-const DiscountRow = props => {
+const PremiumRow = props => {
   const {
     contractsCount,
     edit,
-    discount,
-    discountedStrikePrice,
+    premiumPercent,
+    premiumStrikePrice,
     callOptionChains,
     remove,
     tradeAmount
@@ -229,26 +246,25 @@ const DiscountRow = props => {
   return (
     <TableRow onMouseEnter={() => setVisible('visible')} onMouseLeave={() => setVisible('hidden')}>
       <SmallCell>
-        <Close style={{ cursor: 'pointer', transition: '.1s', visibility }} onClick={remove} />
+        <Center>
+          <Close style={{ cursor: 'pointer', transition: '.1s', visibility }} onClick={remove} />
+        </Center>
       </SmallCell>
       <TableCell scope="row">
         <PercentInput
           placeholder='add percent'
-          value={discount}
+          value={premiumPercent}
           onChange={edit}
         />
       </TableCell>
       <TableCell scope="row">
-        ${twoDecimalsWithCommas(discountedStrikePrice)}
+        ${twoDecimalsWithCommas(premiumStrikePrice)}
       </TableCell>
-      <TableCell>
-        {Math.floor(contractsCount)}
-      </TableCell>
-      {callOptionChains.map(({ closestBid, closestBidPerDay }, j) => (
+      {callOptionChains.map(({ totalIncome, incomePerDay, annualROI }, j) => (
         <Fragment key={j}>
-          <TableCell>${twoDecimalsWithCommas(closestBid)}</TableCell>
-          <TableCell>${twoDecimalsWithCommas(closestBidPerDay)}</TableCell>
-          <TableCell>{(closestBidPerDay * 365 / tradeAmount * 100).toFixed()}%</TableCell>
+          <TableCell>${totalIncome}</TableCell>
+          <TableCell>${incomePerDay}</TableCell>
+          <TableCell>{annualROI}%</TableCell>
         </Fragment>
       ))}
     </TableRow>

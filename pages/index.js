@@ -73,7 +73,6 @@ function OptionsChainingTable({ symbol, removeSymbol, editSymbol }) {
   const [tradeAmt, setTradeAmount] = useLocalStorage(`trade-amount-${symbol}`, '$1,000,000')
   const tradeAmount = parseFloat(String(tradeAmt).replace(/\,|\$/gi, ''))
   const { data = {} } = useSWR(`/api/ameritrade/puts?symbol=${symbol.toUpperCase()}`)
-  const [open, setOpen] = useLocalStorage(`open-${symbol}`)
   
   const { currentMarketValue = 0, error, putExpDateMap = {} } = data
   const staticContractsCount = tradeAmount / (currentMarketValue * 100)
@@ -85,16 +84,14 @@ function OptionsChainingTable({ symbol, removeSymbol, editSymbol }) {
     const putOptionChains = Object.values(putExpDateMap).map(putsByStrikePrice => {
       const closestStrikePrice = getClosestNumber(discountedStrikePrice, putsByStrikePrice)
       // TODO: what if we have multiple puts
-      const closestPut = putsByStrikePrice[closestStrikePrice]
-      let closestBid = (closestPut.bid * 100 * contractsCount).toFixed(2).toLocaleString()
-      if (closestBid === '0.00') closestBid = 0
-      let { daysToExpiration } = closestPut || {}
-      let closestBidPerDay = (closestBid / (daysToExpiration || 1)).toFixed(2).toLocaleString()
-      if (closestBidPerDay === '0.00') closestBidPerDay = 0
+      const closestPut = putsByStrikePrice[closestStrikePrice] || {}
+      let totalIncome = (closestPut.bid * 100 * contractsCount)
+      let incomePerDay = (totalIncome / (closestPut.daysToExpiration || 1))
+      const annualROI = incomePerDay * 365 / tradeAmount * 100
       return {
-        closestBid,
-        closestBidPerDay,
-        contractsCount
+        totalIncome: twoDecimalsWithCommas(totalIncome),
+        incomePerDay: twoDecimalsWithCommas(incomePerDay),
+        annualROI: annualROI.toFixed()
       }
     })
     return {
@@ -213,6 +210,12 @@ const NumberOfContractsToggle = styled(FormControlLabel)`
   }
 `
 
+const Center = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+`
+
 const DiscountRow = props => {
   const {
     contractsCount,
@@ -228,7 +231,9 @@ const DiscountRow = props => {
   return (
     <TableRow onMouseEnter={() => setVisible('visible')} onMouseLeave={() => setVisible('hidden')}>
       <SmallCell>
-        <Close style={{ cursor: 'pointer', transition: '.1s', visibility }} onClick={remove} />
+        <Center>
+          <Close style={{ cursor: 'pointer', transition: '.1s', visibility }} onClick={remove} />
+        </Center>
       </SmallCell>
       <TableCell scope="row">
         <PercentInput
@@ -243,11 +248,11 @@ const DiscountRow = props => {
       <TableCell>
         {Math.floor(contractsCount)}
       </TableCell>
-      {putOptionChains.map(({ closestBid, closestBidPerDay }, j) => (
+      {putOptionChains.map(({ totalIncome, incomePerDay, annualROI }, j) => (
         <Fragment key={j}>
-          <TableCell>${twoDecimalsWithCommas(closestBid)}</TableCell>
-          <TableCell>${twoDecimalsWithCommas(closestBidPerDay)}</TableCell>
-          <TableCell>{(closestBidPerDay * 365 / tradeAmount * 100).toFixed()}%</TableCell>
+          <TableCell>${totalIncome}</TableCell>
+          <TableCell>${incomePerDay}</TableCell>
+          <TableCell>{annualROI}%</TableCell>
         </Fragment>
       ))}
     </TableRow>
