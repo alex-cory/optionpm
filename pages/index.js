@@ -7,12 +7,12 @@ import moment from 'moment'
 // import useFetch from 'uf'
 import useSWR from 'swr'
 import NumberInput from 'react-number-format'
-import { useLocalStorage } from 'react-use'
 import PercentInput from '../components/PercentInput'
 import NavBar from '../components/NavBar'
 import Draggable from '../components/Draggable'
 import update from 'immutability-helper'
 import { getClosestNumber, twoDecimalsWithCommas } from '../libs'
+import useLocalStorage from '../hooks/use-local-storage'
 
 
 export default function Puts(props) {

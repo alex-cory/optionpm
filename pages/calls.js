@@ -7,12 +7,12 @@ import moment from 'moment'
 // import useFetch from 'uf'
 import useSWR from 'swr'
 import NumberInput from 'react-number-format'
-import { useLocalStorage } from 'react-use'
 import PercentInput from '../components/PercentInput'
 import NavBar from '../components/NavBar'
 import Draggable from '../components/Draggable'
 import update from 'immutability-helper'
 import { getClosestNumber, twoDecimalsWithCommas } from '../libs'
+import useLocalStorage from '../hooks/use-local-storage'
 
 const toNumber = x => parseFloat(String(x).replace(/\,|\$/gi, ''))
 
@@ -73,25 +73,28 @@ const Container = styled.div`
 const NumberInput2 = styled(NumberInput)`
   width: 100px;
   & > div > input {
-    color: ${props => !props.isBlue ? '#CACACA' : 'inherit'};
+    color: ${props => props['is-blue'] === 'false' ? '#CACACA' : 'inherit'};
   }
   & > p {
-    color: ${props => !props.isBlue ? '#CACACA' : 'inherit'};
+    color: ${props => props['is-blue'] === 'false' ? '#CACACA' : 'inherit'};
   }
 `
 
+
 function OptionsChainingTable({ symbol, removeSymbol, editSymbol }) {
-  const [premiums, setPremiums] = useLocalStorage(`call-premiums-${symbol}`, [.10, .15, .20])
-  // console.log(`(${symbol}) premiums`, premiums)
-  const [purchasePrice, setPurchasePrice] = useLocalStorage(`call-purchase-price${symbol}`, 10)
+  const { data = {} } = useSWR(`/api/ameritrade/calls?symbol=${symbol.toUpperCase()}`, k => fetch(k).then(r => r.json()))
+  const { currentMarketValue = 0, error, callExpDateMap = {} } = data
+
   const [withPurchasePrice, setWithPurchasePrice] = useLocalStorage(`call-with-purchase-price${symbol}`, false)
+  const [purchasePrice, setPurchasePrice] = useLocalStorage(`c-purchase-price-${symbol}`, 10)
+  const price = withPurchasePrice ? toNumber(purchasePrice) : currentMarketValue
+
   const [numberOfContracts, setNumberOfContracts] = useLocalStorage(`call-#-of-contracts-${symbol}`, 10)
   const contractsCount = toNumber(numberOfContracts)
-  const { data = {} } = useSWR(`/api/ameritrade/calls?symbol=${symbol.toUpperCase()}`, k => fetch(k).then(r => r.json()))
-  
-  const { currentMarketValue = 0, error, callExpDateMap = {} } = data
-  const price = withPurchasePrice ? toNumber(purchasePrice) : currentMarketValue
   const tradeAmount = contractsCount * price * 100
+
+  const [premiums, setPremiums] = useLocalStorage(`c-premiums-${symbol}`, [.10, .15, .20])
+
   const rows = useMemo(() => premiums.map((decimalPercent, i) => {
     const premiumStrikePrice = (1 + decimalPercent) * price
     const callOptionChains = Object.values(callExpDateMap).map(callsByStrikePrice => {
@@ -115,7 +118,6 @@ function OptionsChainingTable({ symbol, removeSymbol, editSymbol }) {
       callOptionChains
     }
   }), [premiums, callExpDateMap, numberOfContracts, tradeAmount])
-  // console.log('rerendered', symbol, rows.length)
 
   const expirations = Object.entries(callExpDateMap).map(
     ([expDate, callsByStrikePrice]) => ({
@@ -148,15 +150,21 @@ function OptionsChainingTable({ symbol, removeSymbol, editSymbol }) {
         <Close style={{ marginLeft: 'auto', cursor: 'pointer' }} onClick={removeSymbol} />
       </Row>
       <Row>
-        <NumberInput2
-          prefix='$'
-          helperText='Market Price'
-          onFocus={(e) => e.target.blur()}
-          isBlue={!withPurchasePrice}
-          customInput={TextField}
-          value={currentMarketValue}
-          thousandSeparator={true}
-        />
+        {!expirations.length ? <Col>
+          <Skeleton height={32} width={64} />
+          <Skeleton height={2} width={100} />
+          <Skeleton height={12} width={90} />
+        </Col> : (
+          <NumberInput2
+            prefix='$'
+            helperText='Market Price'
+            onFocus={(e) => e.target.blur()}
+            is-blue={(!withPurchasePrice).toString()}
+            customInput={TextField}
+            value={currentMarketValue}
+            thousandSeparator={true}
+          />
+        )}
         {!expirations.length ? <Center style={{ height: 50, margin: '0 12px' }}><Skeleton width={20} height={12} /></Center> : (
           <PurchasePriceToggle
             control={<Switch size='small' color='primary' checked={withPurchasePrice} onChange={() => setWithPurchasePrice(!withPurchasePrice)} />}
@@ -168,7 +176,7 @@ function OptionsChainingTable({ symbol, removeSymbol, editSymbol }) {
           <Skeleton height={12} width={90} />
         </Col> : (
           <NumberInput2
-            isBlue={withPurchasePrice}
+            is-blue={withPurchasePrice.toString()}
             prefix='$'
             helperText='Purchase Price'
             customInput={TextField}
