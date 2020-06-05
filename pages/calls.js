@@ -42,7 +42,7 @@ export default function Calls(props) {
           <Draggable key={i} moveCard={move} index={i} id={symbol}>
             <OptionsChainingTable
               symbol={symbol}
-              removeSymbol={() => setSymbols(s => s.filter(sym => sym !== symbol))}
+              removeSymbol={() => setSymbols(symbols.filter(sym => sym !== symbol))}
               editSymbol={v => {
                 const temp = [...symbols]
                 temp[i] = v
@@ -68,6 +68,16 @@ const Container = styled.div`
   display: flex;
   flex-direction: column;
   margin: 0 12px;
+`
+
+const NumberInput2 = styled(NumberInput)`
+  width: 100px;
+  & > div > input {
+    color: ${props => !props.isBlue ? '#CACACA' : 'inherit'};
+  }
+  & > p {
+    color: ${props => !props.isBlue ? '#CACACA' : 'inherit'};
+  }
 `
 
 function OptionsChainingTable({ symbol, removeSymbol, editSymbol }) {
@@ -120,7 +130,6 @@ function OptionsChainingTable({ symbol, removeSymbol, editSymbol }) {
         <Col>
           <TextField
             label={moment().format('LL')}
-            helperText={!expirations.length ? <Skeleton height={14} width={50} /> : <span title={`Market Price: $${currentMarketValue}`}>${currentMarketValue}</span>}
             placeholder='Add Stock Symbol'
             value={symbol}
             onChange={e => editSymbol(e.target.value)}
@@ -136,26 +145,39 @@ function OptionsChainingTable({ symbol, removeSymbol, editSymbol }) {
           onChange={e => setNumberOfContracts(e.target.value)}
           thousandSeparator={true}
         />
-        <NumberInput
+        <Close style={{ marginLeft: 'auto', cursor: 'pointer' }} onClick={removeSymbol} />
+      </Row>
+      <Row>
+        <NumberInput2
           prefix='$'
-          label={(
-            <>
-              <span style={{ marginRight: 12 }}>Purchase Price</span>
-              {!!expirations.length && (
-                <PurchasePriceToggle
-                  control={<Switch size='small' color='primary' checked={withPurchasePrice} onChange={() => setWithPurchasePrice(!withPurchasePrice)} />}
-                  label={withPurchasePrice ? 'On' : 'Off'}
-                />
-              )}
-            </>
-          )}
+          helperText='Market Price'
+          onFocus={(e) => e.target.blur()}
+          isBlue={!withPurchasePrice}
           customInput={TextField}
-          placeholder='add purchase price'
-          value={purchasePrice}
-          onChange={e => setPurchasePrice(e.target.value)}
+          value={currentMarketValue}
           thousandSeparator={true}
         />
-        <Close style={{ marginLeft: 'auto', cursor: 'pointer' }} onClick={removeSymbol} />
+        {!expirations.length ? <Center style={{ height: 50, margin: '0 12px' }}><Skeleton width={20} height={12} /></Center> : (
+          <PurchasePriceToggle
+            control={<Switch size='small' color='primary' checked={withPurchasePrice} onChange={() => setWithPurchasePrice(!withPurchasePrice)} />}
+          />
+        )}
+        {!expirations.length ? <Col>
+          <Skeleton height={32} width={64} />
+          <Skeleton height={2} width={100} />
+          <Skeleton height={12} width={90} />
+        </Col> : (
+          <NumberInput2
+            isBlue={withPurchasePrice}
+            prefix='$'
+            helperText='Purchase Price'
+            customInput={TextField}
+            placeholder='add purchase price'
+            value={purchasePrice}
+            onChange={e => setPurchasePrice(e.target.value)}
+            thousandSeparator={true}
+          />
+        )}
       </Row>
       {!expirations.length ? <LoadingTable rows={premiums} /> : (
         <OptionsTable size="small" aria-label="purchases">
@@ -205,7 +227,12 @@ function OptionsChainingTable({ symbol, removeSymbol, editSymbol }) {
           </TBody>
         </OptionsTable>
       )}
-      <AddCircleOutline style={{ cursor: 'pointer', margin: '8px 100% 0 0' }} onClick={() => setPremiums([...premiums, 0.1])} />
+      <div style={{ display: 'flex' }}>
+        <Center style={{ margin: '8px 0 0 0', cursor: 'pointer', fontSize: 12 }} onClick={() => setPremiums([...premiums, 0.1])} >
+          <AddCircleOutline style={{ marginRight: 4 }} />
+          Add Premium
+        </Center>
+      </div>
     </OptionChainTableContainer>
   )
 }
@@ -220,7 +247,9 @@ const SmallCell = styled(TableCell)`
   width: 32px !important;
 `
 const PurchasePriceToggle = styled(FormControlLabel)`
-  .MuiFormControlLabel-label {
+  margin-left: 10px !important;
+  margin-right: 8px !important;
+  .MuiFormControlLabel-root {
     font-size: 12px !important;
     margin-left: 10px !important;
   }

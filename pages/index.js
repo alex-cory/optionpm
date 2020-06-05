@@ -40,7 +40,7 @@ export default function Puts(props) {
           <Draggable key={i} moveCard={move} index={i} id={symbol+i}>
             <OptionsChainingTable
               symbol={symbol}
-              removeSymbol={() => setSymbols(s => s.filter(sym => sym !== symbol))}
+              removeSymbol={() => setSymbols(symbols.filter(sym => sym !== symbol))}
               editSymbol={v => {
                 const temp = [...symbols]
                 temp[i] = v
@@ -190,7 +190,12 @@ function OptionsChainingTable({ symbol, removeSymbol, editSymbol }) {
         </TBody>
       </OptionsTable>
       )}
-      <AddCircleOutline style={{ cursor: 'pointer', margin: '8px 100% 0 0' }} onClick={() => setDiscounts([...discounts, 0.1])} />
+      <div style={{ display: 'flex' }}>
+        <Center style={{ margin: '8px 0 0 0', cursor: 'pointer', fontSize: 12 }} onClick={() => setDiscounts([...discounts, 0.1])} >
+          <AddCircleOutline style={{ marginRight: 4 }} />
+          Add Discount
+        </Center>
+      </div>
     </OptionChainTableContainer>
   )
 }
