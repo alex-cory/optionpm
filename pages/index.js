@@ -16,7 +16,7 @@ import useLocalStorage from '../hooks/use-local-storage'
 
 
 export default function Puts(props) {
-  const [symbols, setSymbols] = useLocalStorage('symbols', ['TSLA', 'AAPL', 'GE', 'MSFT'])
+  const [symbols, setSymbols] = useLocalStorage('symbols', ['TSLA', 'AAPL'])
   // const [symbols, setSymbols] = useState(() => ['GE'])
   const move = useCallback(
     (dragIndex, hoverIndex) => {
@@ -69,7 +69,7 @@ const Container = styled.div`
 `
 
 function OptionsChainingTable({ symbol, removeSymbol, editSymbol }) {
-  const [discounts, setDiscounts] = useLocalStorage(`discounts-${symbol}`, [.10, .15, .20])
+  const [discounts, setDiscounts] = useLocalStorage(`discounts-${symbol}`, [.05, .10, .15])
   const [tradeAmt, setTradeAmount] = useLocalStorage(`trade-amount-${symbol}`, '$1,000,000')
   const tradeAmount = parseFloat(String(tradeAmt).replace(/\,|\$/gi, ''))
   const { data = {} } = useSWR(`/api/ameritrade/puts?symbol=${symbol.toUpperCase()}`)
