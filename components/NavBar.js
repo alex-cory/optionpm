@@ -49,6 +49,13 @@ const TheTabs = styled(Tabs)`
     background-color: white !important;
   }
 `
+const Img = styled.div`
+  display: block;
+  max-width:230px;
+  max-height:95px;
+  width: auto;
+  height: auto;
+`
 export default function NavBar(props) {
   const { pathname } = useRouter()
   return (
@@ -61,6 +68,7 @@ export default function NavBar(props) {
               <NavLink to='/'>Puts</NavLink>
               <NavLink to='/calls'>Calls</NavLink>
               {/* <NavLink to='/top-companies'>Top Companies</NavLink> */}
+              <img style={{ marginLeft: 'auto' }} width={120} src='/static/option-pricing-machine.png' />
             </TheTabs>
           {/* </Toolbar> */}
         </AppBar>
