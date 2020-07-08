@@ -136,59 +136,59 @@ function OptionsChainingTable({ symbol, removeSymbol, editSymbol }) {
         <Close style={{ marginLeft: 'auto', cursor: 'pointer' }} onClick={removeSymbol} />
       </Row>
       {!expirations.length ? <LoadingTable rows={discounts} /> : (
-<OptionsTable size="small" aria-label="purchases">
-        <TBody>
-          <TR>
-            <SmallCell />
-            <TableCell />
-            <TableCell />
-            <TableCell># Of Contracts</TableCell>
-            {expirations.map(exp => (
-              <TableHead
-                component='th'
-                colSpan='3'
-                scope='colgroup'
-                style={{ display: 'table-cell' }}
-                className='MuiTableCell-sizeSmall' 
-                key={exp.days}
-              >
-                {moment(exp.date, 'YYYY-MM-DD').format('LL')} - {exp.days} DTE (days to expiry)
-              </TableHead>
-            ))}
-          </TR>
-          <TR>
-            <SmallCell />
-            <TableCell>Discount %</TableCell>
-            <TableCell>Discount $</TableCell>
-            <TableCell>
-              <NumberOfContractsToggle
-                control={<Switch size='small' color='primary' checked={isStatic} onChange={() => setIsStatic(!isStatic)} />}
-                label={isStatic ? 'Static' : 'Dynamic'}
+        <OptionsTable size="small" aria-label="purchases">
+          <TBody>
+            <TR>
+              <SmallCell />
+              <TableCell />
+              <TableCell />
+              <TableCell># Of Contracts</TableCell>
+              {expirations.map(exp => (
+                <TableHead
+                  component='th'
+                  colSpan='3'
+                  scope='colgroup'
+                  style={{ display: 'table-cell' }}
+                  className='MuiTableCell-sizeSmall' 
+                  key={exp.days}
+                >
+                  {moment(exp.date, 'YYYY-MM-DD').format('LL')} - {exp.days} DTE (days to expiry)
+                </TableHead>
+              ))}
+            </TR>
+            <TR>
+              <SmallCell />
+              <TableCell>Discount %</TableCell>
+              <TableCell>Discount $</TableCell>
+              <TableCell>
+                <NumberOfContractsToggle
+                  control={<Switch size='small' color='primary' checked={isStatic} onChange={() => setIsStatic(!isStatic)} />}
+                  label={isStatic ? 'Static' : 'Dynamic'}
+                />
+              </TableCell>
+              {expirations.map(exp => (
+                <Fragment key={exp.days}>
+                  <TableHead style={{ display: 'table-cell' }} className='MuiTableCell-sizeSmall' component='th' scope='col'>Total Income</TableHead>
+                  <TableHead style={{ display: 'table-cell' }} className='MuiTableCell-sizeSmall' component='th' scope='col'>Income/Day</TableHead>
+                  <TableHead style={{ display: 'table-cell' }} className='MuiTableCell-sizeSmall' component='th' scope='col'>Annual ROI %</TableHead>
+                </Fragment>
+              ))}
+            </TR>
+            {rows.map((row, i) => (
+              <DiscountRow
+                key={i}
+                {...row}
+                tradeAmount={tradeAmount}
+                remove={() => setDiscounts(discounts.filter((d, j) => j !== i))}
+                edit={e => {
+                  const copy = [...discounts]
+                  copy[i] = Number(parseFloat(e.target.value / 100).toFixed(2))
+                  setDiscounts(copy)
+                }}
               />
-            </TableCell>
-            {expirations.map(exp => (
-              <Fragment key={exp.days}>
-                <TableHead style={{ display: 'table-cell' }} className='MuiTableCell-sizeSmall' component='th' scope='col'>Total Income</TableHead>
-                <TableHead style={{ display: 'table-cell' }} className='MuiTableCell-sizeSmall' component='th' scope='col'>Income/Day</TableHead>
-                <TableHead style={{ display: 'table-cell' }} className='MuiTableCell-sizeSmall' component='th' scope='col'>Annual ROI %</TableHead>
-              </Fragment>
             ))}
-          </TR>
-          {rows.map((row, i) => (
-            <DiscountRow
-              key={i}
-              {...row}
-              tradeAmount={tradeAmount}
-              remove={() => setDiscounts(discounts.filter((d, j) => j !== i))}
-              edit={e => {
-                const copy = [...discounts]
-                copy[i] = Number(parseFloat(e.target.value / 100).toFixed(2))
-                setDiscounts(copy)
-              }}
-            />
-          ))}
-        </TBody>
-      </OptionsTable>
+          </TBody>
+        </OptionsTable>
       )}
       <div style={{ display: 'flex' }}>
         <Center style={{ margin: '8px 0 0 0', cursor: 'pointer', fontSize: 12 }} onClick={() => setDiscounts([...discounts, 0.1])} >

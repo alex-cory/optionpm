@@ -47,6 +47,7 @@ const Img = styled.img`
   box-sizing: border-box;
   padding: 10px;
   width: 100px;
+  max-height: 52px;
   margin-left: auto;
   filter: brightness(0) invert(1);
 `
