@@ -43,6 +43,7 @@ const TheTabs = styled(Tabs)`
   }
 `
 const Img = styled.img`
+  object-fit: scale-down;
   box-sizing: border-box;
   padding: 10px;
   width: 100px;
