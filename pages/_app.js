@@ -1,5 +1,5 @@
 
-import React from 'react'
+import React, { useEffect } from 'react'
 import PropTypes from 'prop-types'
 import Head from 'next/head'
 import { ThemeProvider } from '@material-ui/core/styles'
@@ -8,11 +8,14 @@ import { DndProvider } from 'react-dnd'
 	import { HTML5Backend } from 'react-dnd-html5-backend'
 // import theme from '../src/theme'
 import { SWRConfig } from 'swr'
+import { initGA } from '../libs/analytics'
+
 
 export default function MyApp(props) {
   const { Component, pageProps } = props
 
-  React.useEffect(() => {
+  useEffect(() => {
+    initGA()
     // Remove the server-side injected CSS.
     const jssStyles = document.querySelector('#jss-server-side')
     if (jssStyles) {

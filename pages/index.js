@@ -13,9 +13,11 @@ import Draggable from '../components/Draggable'
 import update from 'immutability-helper'
 import { getClosestNumber, twoDecimalsWithCommas } from '../libs'
 import useLocalStorage from '../hooks/use-local-storage'
+import { logPageView } from '../libs/analytics'
 
 
 export default function Puts(props) {
+  useEffect(logPageView, [])
   const [symbols, setSymbols] = useLocalStorage('symbols', ['TSLA', 'AAPL'])
   // const [symbols, setSymbols] = useState(() => ['GE'])
   const move = useCallback(
